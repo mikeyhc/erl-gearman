@@ -111,8 +111,8 @@ dead(Event, State) ->
 get_functions(Modules) -> get_functions(Modules, []).
 
 get_functions([], Functions) -> lists:flatten(Functions);
-get_functions([Modules|Modules], Functions) ->
-    get_functions(Modules, lists:merge(Functions, Modules:functions())).
+get_functions([Module|Modules], Functions) ->
+    get_functions(Modules, lists:merge(Functions, Module:functions())).
 
 
 dispatch_function([], _Func, _Arg, _Handle) ->
