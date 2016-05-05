@@ -70,7 +70,7 @@ code_change(_OldVsn, State, _Extra) -> {ok, State}.
 
 handle_call({connect, Host, Port}, _From, State) ->
     NewState = State#state{host=Host, port=Port},
-    {reply, ok, NewState};
+    {reply, ok, NewState, 0};
 handle_call({send_command, Packet}, _From, State) ->
     try gen_tcp:send(State#state.socket, Packet) of
         ok  -> {reply, ok, State};
@@ -89,6 +89,7 @@ handle_call({send_command, Packet}, _From, State) ->
 handle_cast(stop, State) -> {stop, normal, State}.
 
 handle_info(timeout, State=#state{host=Host, port=Port, socket=OldSocket}) ->
+    io:format("connecting..."),
     case OldSocket of
         not_connected ->
             case gen_tcp:connect(Host, Port, [binary, {packet, 0}],
@@ -96,10 +97,13 @@ handle_info(timeout, State=#state{host=Host, port=Port, socket=OldSocket}) ->
                 {ok, Socket} ->
                     State#state.pidparent ! {self(), connected},
                     NewState = State#state{socket=Socket},
+                    io:format("connected~n"),
                     {noreply, NewState};
                 {error, econnrefused} ->
+                    io:format("refused~n"),
                     {noreply, State, ?RECONNECT_DELAY};
                 {error, timeout} ->
+                    io:format("timed out~n"),
                     {noreply, State, ?RECONNECT_DELAY}
             end;
         _ ->
