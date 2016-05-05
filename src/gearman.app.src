@@ -1,0 +1,19 @@
+{application, gearman,
+ [{description, "Gearman application"},
+  {vsn, "0.1.0"},
+  {registered, []},
+  {applications,
+   [kernel,
+    stdlib
+   ]},
+  {env,[]},
+  {modules, [
+    gearman_connection,
+    gearman_protocol,
+    gearman_worker
+  ]},
+
+  {maintainers, []},
+  {licenses, []},
+  {links, []}
+ ]}.
