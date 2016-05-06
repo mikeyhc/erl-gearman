@@ -3,7 +3,7 @@
 -behaviour(gen_fsm).
 
 %% Public API
--export([start_link/2, start/2]).
+-export([start_link/2, start/2, stop/1]).
 
 %% gen_fsm callbacks
 -export([init/1, terminate/3, code_change/4]).
@@ -27,6 +27,8 @@ start_link(Server, WorkerModules) ->
 
 start(Server, WorkerModules) ->
     gen_fsm:start(?MODULE, {self(), Server, WorkerModules}, []).
+
+stop(Server) -> Server ! stop.
 
 %%%-------------------------------------------------------------------
 %% gen_fsm callbacks
@@ -62,7 +64,9 @@ handle_info({Connection, connected}, _StateName,
     {next_state, working, State};
 handle_info({Connection, disconnected}, _StateName,
             State=#state{connection=Connection}) ->
-    {next_state, deadd, State};
+    {next_state, dead, State};
+handle_info(stop, _StateName, State) ->
+    {stop, normal, State};
 handle_info(Other, StateName, State) -> ?MODULE:StateName(Other, State).
 
 %%%-------------------------------------------------------------------
