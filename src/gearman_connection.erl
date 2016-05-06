@@ -69,7 +69,7 @@ terminate(Reason, #state{socket=Socket}) ->
 code_change(_OldVsn, State, _Extra) -> {ok, State}.
 
 handle_call({connect, Host, Port}, _From, State) ->
-    NewState = State#state{host=Host, port=Port},
+    NewState = State#state{host=Host, port=Port, socket=not_connected},
     {reply, ok, NewState, 0};
 handle_call({send_command, Packet}, _From, State) ->
     try gen_tcp:send(State#state.socket, Packet) of
@@ -107,7 +107,7 @@ handle_info(timeout, State=#state{host=Host, port=Port, socket=OldSocket}) ->
                     {noreply, State, ?RECONNECT_DELAY}
             end;
         _ ->
-            io:format("Timeout while socket no disconnected: ~p~n", [State]),
+            io:format("Timeout while socket not disconnected: ~p~n", [State]),
             {noreply, State}
     end;
 handle_info({tcp, _Socket, NewData}, State) ->
