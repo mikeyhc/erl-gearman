@@ -5,8 +5,9 @@
 -spec parse_command(binary()) -> {error, not_enough_data}
                                | {ok, binary(), atom(), atom() }
                                | {ok, binary(), atom(), tuple() }.
-parse_command(<<"\000RE", Type:8, CmdID:32/big, Length:32/big,
+parse_command(B= <<"\000RE", Type:8, CmdID:32/big, Length:32/big,
                 Rest/binary>>) ->
+    io:format("received ~w~n", [B]),
     if  size(Rest) >= Length ->
            Type = case Type of
                       $Q -> request;
