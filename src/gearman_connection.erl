@@ -56,7 +56,7 @@ send_response(Pid, Command, Args) ->
 %% gen_server callbacks
 %%%-------------------------------------------------------------------
 
-init(PidParent) -> {ok, #state{pidparent=PidParent}}.
+init(PidParent) -> {ok, #state{pidparent=PidParent, buffer=[]}}.
 
 terminate(Reason, #state{socket=Socket}) ->
     io:format("~p stopping: ~p~n", [?MODULE, Reason]),
