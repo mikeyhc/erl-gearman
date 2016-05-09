@@ -23,10 +23,13 @@
 %%%-------------------------------------------------------------------
 
 start_link(Server, WorkerModules) ->
-    gen_fsm:start_link(?MODULE, {self(), Server, WorkerModules}, []).
+    Functions = get_functions(WorkerModules),
+    gen_fsm:start_link(?MODULE, {self(), Server, WorkerModules, Functions},
+                       []).
 
 start(Server, WorkerModules) ->
-    gen_fsm:start(?MODULE, {self(), Server, WorkerModules}, []).
+    Functions = get_functions(WorkerModules),
+    gen_fsm:start(?MODULE, {self(), Server, WorkerModules, Functions}, []).
 
 stop(Server) -> Server ! stop.
 
@@ -34,8 +37,7 @@ stop(Server) -> Server ! stop.
 %% gen_fsm callbacks
 %%%-------------------------------------------------------------------
 
-init({_PidMaster, Server, WorkerModules}) ->
-    Functions = get_functions(WorkerModules),
+init({_PidMaster, Server, WorkerModules, Functions}) ->
     {ok, Connection} = gearman_connection:start_link(),
     gearman_connection:connect(Connection, Server),
     {ok, dead, #state{connection=Connection, modules=WorkerModules,
