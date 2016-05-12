@@ -1,3 +1,12 @@
+%%%-------------------------------------------------------------------
+%% @doc
+%% A gearman_worker gets a list of functions from the given modules,
+%% sets up callbacks to the gearman server, then calls the correct
+%% functions whenever the server sends it work
+%% @author mikeyhc <mikeyhc@atmosia.net>
+%% @version 0.1.0
+%% @end
+%%%-------------------------------------------------------------------
 -module(gearman_worker).
 
 -behaviour(gen_fsm).
@@ -22,15 +31,30 @@
 %% Public API
 %%%-------------------------------------------------------------------
 
+%% @doc
+%% starts a linked gearman_worker. Needs a Server to connect to and a
+%% list of WorkerModules which have the function functions/0 defined
+%% (as this will be called to get a list of worker functions).
+%%
+%% Every module in WorkerModules needs the following callback defined
+%% ?MODULE:function() -> [{Job :: string(), Function :: fun(string())
+%% -> string()}].
+%% @end
 start_link(Server, WorkerModules) ->
     Functions = get_functions(WorkerModules),
     gen_fsm:start_link(?MODULE, {self(), Server, WorkerModules, Functions},
                        []).
 
+%% @doc
+%% starts an gearman_worker. see start_link/2 for more details on parameters.
+%% @end
 start(Server, WorkerModules) ->
     Functions = get_functions(WorkerModules),
     gen_fsm:start(?MODULE, {self(), Server, WorkerModules, Functions}, []).
 
+%% @doc
+%% stops a running gearman_worker
+%% @end
 stop(Server) -> Server ! stop.
 
 %%%-------------------------------------------------------------------
@@ -59,14 +83,17 @@ handle_sync_event(Event, From, StateName, State) ->
               [Event, From, StateName, State]),
     {stop, {StateName, undefined_event, Event}, State}.
 
+%% handle connection from gearman_connection
 handle_info({Connection, connected}, _StateName,
             State=#state{connection=Connection}) ->
     register_functions(Connection, State#state.functions),
     gearman_connection:send_request(Connection, grab_job, {}),
     {next_state, working, State};
+%% handle disconnection from gearman_connection
 handle_info({Connection, disconnected}, _StateName,
             State=#state{connection=Connection}) ->
     {next_state, dead, State};
+%% handle stop from stop/1
 handle_info(stop, _StateName, State) ->
     {stop, normal, State};
 handle_info(Other, StateName, State) -> ?MODULE:StateName(Other, State).
@@ -75,6 +102,7 @@ handle_info(Other, StateName, State) -> ?MODULE:StateName(Other, State).
 %% fsm events
 %%%-------------------------------------------------------------------
 
+%% handle job commands
 working({Conn, command, noop}, State=#state{connection=Conn}) ->
     {next_state, working, State};
 working({Conn, command, no_job}, State=#state{connection=Conn}) ->
@@ -98,9 +126,11 @@ working({Conn, command, {job_assign, Handle, Func, Arg}},
     gearman_connection:send_request(Conn, grab_job, {}),
     {next_state, working, State}.
 
+%% request a job after sleeping
 sleeping(timeout, State=#state{connection=Conn}) ->
     gearman_connection:send_request(Conn, grab_job, {}),
     {next_state, working, State};
+%% request a job of noop wakeup
 sleeping({Conn, command, noop}, State=#state{connection=Conn}) ->
     gearman_connection:send_request(Conn, grab_job, {}),
     {next_state, working, State}.
@@ -114,6 +144,7 @@ dead(Event, State) ->
 %% Helper functions
 %%%-------------------------------------------------------------------
 
+%% get all the functions the module provides for callbacks
 get_functions(Modules) -> get_functions(Modules, []).
 
 get_functions([], Functions) -> lists:flatten(Functions);
@@ -121,6 +152,7 @@ get_functions([Module|Modules], Functions) ->
     get_functions(Modules, lists:merge(Functions, Module:functions())).
 
 
+%% dispatch to correct callback in list
 dispatch_function([], _Func, _Arg, _Handle) ->
     {error, invalid_function};
 dispatch_function([{Func, Function}|_], Func, Arg, Handle) ->
@@ -128,6 +160,7 @@ dispatch_function([{Func, Function}|_], Func, Arg, Handle) ->
 dispatch_function([_|Functions], Func, Arg, Handle) ->
     dispatch_function(Functions, Func, Arg, Handle).
 
+%% register functions with the gearman server
 register_functions(_Connection, []) -> ok;
 register_functions(Connection, [{Name, _Function}|Functions]) ->
     gearman_connection:send_request(Connection, can_do, {Name}),

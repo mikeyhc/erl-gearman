@@ -1,10 +1,24 @@
+%%%-------------------------------------------------------------------
+%% @doc
+%% A module for creating a parsing the binary gearman protocol
+%% @author mikeyhc <mikeyhc@atmosia.net>
+%% @version 0.1.0
+%% @end
+%%%-------------------------------------------------------------------
 -module(gearman_protocol).
 
 -export([parse_command/1, pack_request/2, pack_response/2]).
 
+-type type() :: request | response.
+
+%% @doc
+%% parses a command, returning the remaining data, the type of
+%% the command (request or reply) and the command with its
+%% arguments
+%% @end
 -spec parse_command(binary()) -> {error, not_enough_data}
-                               | {ok, binary(), atom(), atom() }
-                               | {ok, binary(), atom(), tuple() }.
+                               | {ok, binary(), type(), atom() }
+                               | {ok, binary(), type(), tuple() }.
 parse_command(<<"\000RE", TypeChar:8, CmdID:32/big, Length:32/big,
                 Rest/binary>>) ->
     if  size(Rest) >= Length ->
@@ -19,6 +33,11 @@ parse_command(<<"\000RE", TypeChar:8, CmdID:32/big, Length:32/big,
     end;
 parse_command(_) -> {error, not_enough_data}.
 
+%% @doc
+%% @private
+%% parses a command ID and the data to extract the arguments
+%% from the data
+%% @end
 parse_command(CmdID, Data) ->
     case CmdID of
         1   -> {can_do, Data};          % function
@@ -67,21 +86,39 @@ parse_command(CmdID, Data) ->
         % TODO: implement 25-36
     end.
 
+%% @doc
+%% given a command and its arguments it packs it into the gearman
+%% request binary format
+%% @end
 -spec pack_request(atom(), tuple()) -> tuple().
 pack_request(Cmd, Args) ->
     {CmdID, ArgList} = pack_command(Cmd, Args),
     pack_command(CmdID, ArgList, "\000REQ").
 
+%% @doc
+%% given a command and its arguments it packs it into the gearman
+%% response binary format
+%% @end
 -spec pack_response(atom(), tuple()) -> tuple().
 pack_response(Cmd, Args) ->
     {CmdID, ArgList} = pack_command(Cmd, Args),
     pack_command(CmdID, ArgList, "\000RES").
 
+%% @doc
+%% @private
+%% given a command ID, arguments a type (Magic) it will pack it into
+%% the gearman binary format
+%% @end
 pack_command(CmdID, Args, Magic) ->
     Data = list_to_binary(string:join(Args, [0])),
     Length = size(Data),
     list_to_binary([Magic, <<CmdID:32/big, Length:32/big>>, Data]).
 
+%% @doc
+%% @private
+%% given the command ID and args it returns the ID and arguments in a
+%% list format
+%% @end
 pack_command(can_do, {Fun}) -> {1, [Fun]};
 pack_command(cant_do, {Fun}) -> {2, [Fun]};
 pack_command(reset_abilities, {}) -> {3, []};
@@ -110,6 +147,7 @@ pack_command(can_do_timeout, {Func, Timeout}) ->
 pack_command(all_yours, {}) -> {24, []}.
 % TODO: implement 25-36
 
+%% splits a List into at most Count parts, using Seperator as a delimiter.
 split(List, Seperator, Count) ->
     split(List, Seperator, [], [], Count).
 
