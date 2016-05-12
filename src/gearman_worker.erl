@@ -37,8 +37,10 @@
 %% (as this will be called to get a list of worker functions).
 %%
 %% Every module in WorkerModules needs the following callback defined
-%% ?MODULE:function() -> [{Job :: string(), Function :: fun(string())
-%% -> string()}].
+%% ?MODULE:function() -> [
+%%   {Job :: string(), 
+%%    Function :: fun(string(), string(), string()) -> string()
+%%    }].
 %% @end
 start_link(Server, WorkerModules) ->
     Functions = get_functions(WorkerModules),
